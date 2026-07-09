@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  # ── Sniffer DNS (nécessite des privilèges root) ──
+  sniffer:
+    build: .
+    container_name: hawkeye-sniffer
+    command: ["--db", "/data/hawkeye.db", "--export-json"]
+    network_mode: "host"
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    volumes:
+      - hawkeye-data:/data
+      - ./malicious.txt:/app/malicious.txt:ro
+    restart: unless-stopped
+    environment:
+      - HAWKEYE_TELEGRAM_TOKEN=${HAWKEYE_TELEGRAM_TOKEN:-}
+      - HAWKEYE_TELEGRAM_CHAT_ID=${HAWKEYE_TELEGRAM_CHAT_ID:-}
+
+  # ── Dashboard Web ──
+  dashboard:
+    build: .
+    container_name: hawkeye-dashboard
+    command: ["dashboard", "--host", "0.0.0.0", "--port", "5000", "--db", "/data/hawkeye.db"]
+    ports:
+      - "5000:5000"
+    volumes:
+      - hawkeye-data:/data
+    restart: unless-stopped
+    depends_on:
+      - sniffer
+
+volumes:
+  hawkeye-data:

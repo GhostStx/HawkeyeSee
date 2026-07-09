@@ -1,0 +1,18 @@
+# HawkEye - Liste Noire de Domaines Malveillants
+# Ajoutez un domaine par ligne. Les lignes commençant par # sont ignorées.
+# Sources : exemples de domaines de phishing / malware connus.
+
+malware-tracker.example.com
+phishing-bank.xyz
+evil-download.xyz
+fake-login.xyz
+driveby-download.tk
+ransomware-payload.ml
+c2-server.ddns.net
+malicious.site
+phishing.ga
+spyware.gq
+
+# === Domaines de test (à utiliser avec nslookup) ===
+# test-malware.local
+# test-phishing.local

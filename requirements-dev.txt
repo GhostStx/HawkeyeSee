@@ -1,0 +1,10 @@
+# ── HawkEye — Dépendances de développement ──────────────────────────────────
+
+-r requirements.txt
+
+# Tests
+pytest>=8.0.0
+pytest-cov>=5.0.0
+
+# Style
+flake8>=7.0.0

@@ -1,0 +1,35 @@
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Environnement virtuel ──
+.venv/
+venv/
+env/
+
+# ── HawkEye ──
+*.db
+logs/
+*.db-journal
+*.db-wal
+*.db-shm
+
+# ── IDE ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS ──
+.DS_Store
+Thumbs.db
+
+# ── Tests ──
+.pytest_cache/
+.coverage
+htmlcov/

@@ -1,0 +1,16 @@
+# ── HawkEye — Dépendances ──────────────────────────────────────────────────
+
+# Capture réseau
+scapy>=2.5.0
+
+# Résolution DNS
+dnspython>=2.4.0
+
+# Dashboard web
+flask>=3.0.0
+
+# Notifications Telegram (optionnel)
+aiohttp>=3.9.0
+
+# ── Développement ──
+# pip install -r requirements-dev.txt

@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HawkEye — Dashboard DNS</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        /* ── Thème sombre ── */
+        :root {
+            --bg: #0d1117;
+            --bg-card: #161b22;
+            --bg-hover: #1c2333;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --text-dim: #8b949e;
+            --accent: #58a6ff;
+            --rouge: #f85149;
+            --jaune: #d29922;
+            --vert: #3fb950;
+            --cyan: #39d2c0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .header h1 span { color: var(--accent); }
+        .header .subtitle { color: var(--text-dim); font-size: 14px; }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+        .status-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: var(--vert);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        /* ── Grille de stats ── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            transition: transform 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-2px); }
+
+        .stat-card .label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+        }
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .stat-card .value.danger { color: var(--rouge); }
+        .stat-card .value.warning { color: var(--jaune); }
+        .stat-card .value.info { color: var(--cyan); }
+        .stat-card .value.normal { color: var(--vert); }
+
+        /* ── Graphique ── */
+        .chart-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        /* ── Tableau ── */
+        .table-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .table-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .table-toolbar h2 { font-size: 16px; }
+
+        .filtres {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .filtres input, .filtres select {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+        .filtres input:focus { outline: none; border-color: var(--accent); }
+
+        .btn {
+            background: var(--bg-hover);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            padding: 6px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: var(--border); }
+        .btn.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px 16px;
+            font-weight: 600;
+            color: var(--text-dim);
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        th:hover { color: var(--text); }
+
+        td {
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border);
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+        }
+        tr:hover td { background: var(--bg-hover); }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-blacklist { background: rgba(248,81,73,0.2); color: var(--rouge); }
+        .badge-dga { background: rgba(210,153,34,0.2); color: var(--jaune); }
+        .badge-tunnel { background: rgba(57,210,192,0.2); color: var(--cyan); }
+        .badge-normal { background: rgba(63,185,80,0.15); color: var(--vert); }
+
+        .alerte-msg { font-size: 11px; color: var(--text-dim); max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .header { flex-direction: column; align-items: flex-start; gap: 8px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            td, th { padding: 6px 8px; font-size: 11px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>🦅 <span>HawkEye</span> Dashboard</h1>
+            <div class="subtitle">Sniffer DNS & Détecteur d'Anomalies · Temps réel</div>
+        </div>
+        <div class="status">
+            <span class="status-dot"></span>
+            <span id="statusText">Connecté</span>
+            <span style="color:var(--text-dim);font-size:13px;margin-left:8px" id="lastUpdate"></span>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+            <div class="label">Requêtes totales</div>
+            <div class="value normal" id="statTotal">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Alertes</div>
+            <div class="value danger" id="statAlertes">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Domaines uniques</div>
+            <div class="value info" id="statDomaines">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">IPs sources</div>
+            <div class="value warning" id="statIps">0</div>
+        </div>
+    </div>
+
+    <!-- Graphique -->
+    <div class="chart-container">
+        <canvas id="timelineChart" height="80"></canvas>
+    </div>
+
+    <!-- Tableau -->
+    <div class="table-container">
+        <div class="table-toolbar">
+            <h2>📋 Dernières requêtes</h2>
+            <div class="filtres">
+                <input type="text" id="searchDomaine" placeholder="🔍 Domaine..." oninput="filtrer()">
+                <input type="text" id="searchIp" placeholder="🖥️ IP..." oninput="filtrer()">
+                <button class="btn" id="btnAlertes" onclick="toggleAlertes()">🚨 Alertes seulement</button>
+                <button class="btn" onclick="rafraichir()">🔄 Actualiser</button>
+            </div>
+        </div>
+        <div style="overflow-x:auto">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Heure</th>
+                        <th>IP source</th>
+                        <th>Domaine</th>
+                        <th>Type</th>
+                        <th>Alerte</th>
+                        <th>Message</th>
+                    </tr>
+                </thead>
+                <tbody id="requetesBody">
+                    <tr><td colspan="6" class="no-data">🔄 Chargement...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // ── État ──
+        let alertesOnly = false;
+        let requetesData = [];
+        let chartInst = null;
+
+        // ── Connexion SSE ──
+        function connectSSE() {
+            const evtSource = new EventSource('/api/events');
+            evtSource.addEventListener('connected', () => {
+                document.getElementById('statusText').textContent = 'Connecté (live)';
+                rafraichir();
+            });
+            evtSource.addEventListener('requete', (e) => {
+                const data = JSON.parse(e.data);
+                requetesData.unshift({
+                    timestamp: data.timestamp,
+                    ip_source: data.ip_source,
+                    domaine: data.domaine,
+                    type_query: data.type_query,
+                    alerte: data.alerte,
+                    alerte_type: data.alerte_type,
+                });
+                if (requetesData.length > 200) requetesData.pop();
+                majUI();
+            });
+            evtSource.addEventListener('ping', () => {});
+            evtSource.onerror = () => {
+                document.getElementById('statusText').textContent = '⏳ Reconnexion...';
+                setTimeout(connectSSE, 3000);
+            };
+        }
+
+        // ── Chargement initial ──
+        async function rafraichir() {
+            try {
+                const [stats, requetes] = await Promise.all([
+                    fetch('/api/stats').then(r => r.json()),
+                    fetch('/api/requetes?limite=200').then(r => r.json()),
+                ]);
+                if (stats.error) throw new Error(stats.error);
+                requetesData = requetes;
+                majStats(stats);
+                majTableau();
+                majChart();
+            } catch (e) {
+                document.getElementById('requetesBody').innerHTML =
+                    `<tr><td colspan="6" class="no-data">❌ Erreur : ${e.message}</td></tr>`;
+            }
+        }
+
+        // ── Mise à jour stats ──
+        function majStats(stats) {
+            document.getElementById('statTotal').textContent = stats.total;
+            document.getElementById('statAlertes').textContent = stats.alertes;
+            document.getElementById('statDomaines').textContent = stats.domaine_uniques ?? stats.domaines_uniques;
+            document.getElementById('statIps').textContent = stats.ips_uniques;
+            document.getElementById('lastUpdate').textContent =
+                `mis à jour ${new Date().toLocaleTimeString()}`;
+        }
+
+        // ── Mise à jour tableau ──
+        function majTableau() {
+            const body = document.getElementById('requetesBody');
+            let data = requetesData;
+            if (alertesOnly) data = data.filter(r => r.alerte);
+
+            // Filtres
+            const searchDom = document.getElementById('searchDomaine').value.toLowerCase();
+            const searchIp = document.getElementById('searchIp').value.toLowerCase();
+            if (searchDom) data = data.filter(r => r.domaine.toLowerCase().includes(searchDom));
+            if (searchIp) data = data.filter(r => r.ip_source.includes(searchIp));
+
+            if (data.length === 0) {
+                body.innerHTML = `<tr><td colspan="6" class="no-data">📭 Aucune requête trouvée</td></tr>`;
+                return;
+            }
+
+            body.innerHTML = data.slice(0, 100).map(r => {
+                const type = r.alerte_type || 'NORMAL';
+                const badgeClass = {
+                    'BLACKLIST': 'badge-blacklist',
+                    'DGA': 'badge-dga',
+                    'DGA_RAFALE': 'badge-dga',
+                    'TUNNEL_DNS': 'badge-tunnel',
+                    'NORMAL': 'badge-normal',
+                }[type] || 'badge-normal';
+
+                const badgeLabel = {
+                    'BLACKLIST': '🚨 Malveillant',
+                    'DGA': '⚠️ DGA',
+                    'DGA_RAFALE': '📡 Rafale',
+                    'TUNNEL_DNS': '🔓 Tunnel',
+                    'NORMAL': '✓ OK',
+                }[type] || type;
+
+                const time = r.timestamp ? new Date(r.timestamp).toLocaleTimeString() : '—';
+
+                return `<tr>
+                    <td style="color:var(--text-dim)">${time}</td>
+                    <td style="color:var(--accent)">${r.ip_source}</td>
+                    <td>${r.domaine}</td>
+                    <td>${r.type_query}</td>
+                    <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
+                    <td class="alerte-msg">${r.alerte || ''}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        // ── Graphique temporel ──
+        function majChart() {
+            const canvas = document.getElementById('timelineChart');
+            const ctx = canvas.getContext('2d');
+
+            // Agréger par minute
+            const now = Date.now();
+            const buckets = {};
+            for (let i = 5; i >= 0; i--) {
+                const key = new Date(now - i * 60000).toLocaleTimeString();
+                buckets[key] = { total: 0, alertes: 0 };
+            }
+
+            requetesData.forEach(r => {
+                const t = new Date(r.timestamp).getTime();
+                const diffMin = Math.floor((now - t) / 60000);
+                if (diffMin >= 0 && diffMin < 6) {
+                    const key = new Date(t).toLocaleTimeString();
+                    if (!buckets[key]) buckets[key] = { total: 0, alertes: 0 };
+                    buckets[key].total++;
+                    if (r.alerte) buckets[key].alertes++;
+                }
+            });
+
+            const labels = Object.keys(buckets);
+            const totalData = Object.values(buckets).map(b => b.total);
+            const alerteData = Object.values(buckets).map(b => b.alertes);
+
+            if (chartInst) { chartInst.destroy(); }
+
+            chartInst = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Requêtes',
+                            data: totalData,
+                            backgroundColor: 'rgba(88,166,255,0.3)',
+                            borderColor: '#58a6ff',
+                            borderWidth: 1,
+                        },
+                        {
+                            label: 'Alertes',
+                            data: alerteData,
+                            backgroundColor: 'rgba(248,81,73,0.5)',
+                            borderColor: '#f85149',
+                            borderWidth: 1,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#8b949e', boxWidth: 12 } } },
+                    scales: {
+                        x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+                        y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, beginAtZero: true },
+                    },
+                },
+            });
+        }
+
+        // ── Filtres ──
+        function filtrer() { majTableau(); }
+
+        function toggleAlertes() {
+            alertesOnly = !alertesOnly;
+            document.getElementById('btnAlertes').classList.toggle('active');
+            majTableau();
+        }
+
+        function majUI() {
+            // Recharger les stats depuis l'API périodiquement
+            fetch('/api/stats').then(r => r.json()).then(majStats).catch(() => {});
+            majTableau();
+            majChart();
+        }
+
+        // ── Démarrage ──
+        connectSSE();
+        setInterval(rafraichir, 10000);
+    </script>
+</body>
+</html>
