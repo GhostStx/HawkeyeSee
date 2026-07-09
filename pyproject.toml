@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "hawkeye"
+version = "2.1.0"
+description = "🦅 HawkEye — Sniffer DNS & Détecteur d'Anomalies (Cybersécurité Réseau)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+keywords = ["dns", "security", "sniffer", "dga", "cybersecurity", "network"]
+
+authors = [
+    {name = "GhostStx"},
+]
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Education",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: System :: Networking :: Monitoring",
+]
+
+dependencies = [
+    "scapy>=2.5.0",
+    "dnspython>=2.4.0",
+    "flask>=3.0.0",
+    "aiohttp>=3.9.0",
+    "jinja2>=3.1.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/GhostStx/HawkeyeSee"
+"Bug Tracker" = "https://github.com/GhostStx/HawkeyeSee/issues"
+
+[project.scripts]
+hawkeye = "hawkeye.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["hawkeye*"]
+
+[tool.setuptools.package-data]
+"hawkeye" = ["dashboard/templates/*.html", "report/templates/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["hawkeye"]
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.flake8]
+max-line-length = 100
+extend-ignore = ["E203", "W503"]
+exclude = [".venv", "__pycache__", "build", "dist"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]

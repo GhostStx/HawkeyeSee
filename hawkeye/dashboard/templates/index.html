@@ -257,6 +257,8 @@
                 <input type="text" id="searchIp" placeholder="🖥️ IP..." oninput="filtrer()">
                 <button class="btn" id="btnAlertes" onclick="toggleAlertes()">🚨 Alertes seulement</button>
                 <button class="btn" onclick="rafraichir()">🔄 Actualiser</button>
+                <button class="btn" onclick="exportCSV()">📥 CSV</button>
+                <button class="btn" onclick="exportJSON()">📥 JSON</button>
             </div>
         </div>
         <div style="overflow-x:auto">
@@ -464,6 +466,18 @@
             fetch('/api/stats').then(r => r.json()).then(majStats).catch(() => {});
             majTableau();
             majChart();
+        }
+
+        // ── Export ──
+        function exportCSV() {
+            const params = new URLSearchParams();
+            if (alertesOnly) params.set('alerte_type', 'BLACKLIST');
+            window.open(`/api/export/csv?${params.toString()}`, '_blank');
+        }
+        function exportJSON() {
+            const params = new URLSearchParams();
+            if (alertesOnly) params.set('alerte_type', 'BLACKLIST');
+            window.open(`/api/export/json?${params.toString()}`, '_blank');
         }
 
         // ── Démarrage ──

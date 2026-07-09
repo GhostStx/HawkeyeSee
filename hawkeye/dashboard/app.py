@@ -215,6 +215,72 @@ def create_app(db_path: str = "hawkeye.db") -> "Flask":
             },
         )
 
+    @app.route("/api/export/csv")
+    def api_export_csv():
+        """Export CSV de toutes les requêtes."""
+        import csv
+        import io
+
+        alerte_type = request.args.get("alerte_type", "")
+        try:
+            conn = sqlite3.connect(app.config["DB_PATH"])
+            conn.row_factory = sqlite3.Row
+
+            if alerte_type:
+                rows = conn.execute(
+                    "SELECT timestamp, ip_source, domaine, type_query, alerte, alerte_type "
+                    "FROM requetes WHERE alerte_type = ? ORDER BY id DESC",
+                    (alerte_type,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT timestamp, ip_source, domaine, type_query, alerte, alerte_type "
+                    "FROM requetes ORDER BY id DESC"
+                ).fetchall()
+            conn.close()
+
+            output = io.StringIO()
+            writer = csv.writer(output)
+            writer.writerow(["timestamp", "ip_source", "domaine", "type_query", "alerte", "alerte_type"])
+            for row in rows:
+                writer.writerow([row[0], row[1], row[2], row[3], row[4], row[5]])
+
+            return Response(
+                output.getvalue(),
+                mimetype="text/csv",
+                headers={
+                    "Content-Disposition": f"attachment; filename=hawkeye-export-{datetime.now().strftime('%Y%m%d-%H%M%S')}.csv"
+                },
+            )
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/export/json")
+    def api_export_json():
+        """Export JSON de toutes les requêtes."""
+        alerte_type = request.args.get("alerte_type", "")
+        try:
+            conn = sqlite3.connect(app.config["DB_PATH"])
+            conn.row_factory = sqlite3.Row
+
+            if alerte_type:
+                rows = conn.execute(
+                    "SELECT timestamp, ip_source, domaine, type_query, alerte, alerte_type "
+                    "FROM requetes WHERE alerte_type = ? ORDER BY id DESC",
+                    (alerte_type,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT timestamp, ip_source, domaine, type_query, alerte, alerte_type "
+                    "FROM requetes ORDER BY id DESC"
+                ).fetchall()
+            conn.close()
+
+            data = [dict(r) for r in rows]
+            return jsonify(data)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
     return app
 
 

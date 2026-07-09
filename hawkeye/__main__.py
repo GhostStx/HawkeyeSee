@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 """
-HawkEye v2 — Sniffer DNS & Détecteur d'Anomalies
-===================================================
+HawkEye v2.1 — Sniffer DNS & Détecteur d'Anomalies
+=====================================================
 Point d'entrée principal du package.
 
 Usage :
-    python -m hawkeye                        # Lancer le sniffer
-    python -m hawkeye --help                 # Aide
-    python -m hawkeye dashboard              # Lancer le dashboard web
-    python -m hawkeye --list                 # Voir l'historique
-    python -m hawkeye --export-json          # Exporter en JSON
-    python -m hawkeye --export-csv           # Exporter en CSV
-    python -m hawkeye --stats                # Voir les statistiques
+    python -m hawkeye                          # Sniffer temps réel
+    python -m hawkeye dashboard                # Dashboard web
+    python -m hawkeye watch                    # Dashboard terminal
+    python -m hawkeye report                   # Rapport HTML
+    python -m hawkeye pcap capture.pcap        # Analyse PCAP offline
+    python -m hawkeye --list                   # Historique
+    python -m hawkeye --stats                  # Statistiques
+    python -m hawkeye --recherche --domaine X  # Recherche
+    python -m hawkeye --export-json            # Export JSON
+    python -m hawkeye --export-csv             # Export CSV
 """
 
 import argparse
@@ -20,6 +23,13 @@ import os
 import sys
 import signal
 from pathlib import Path
+
+# ── Chargement .env ──
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 from scapy.all import IP, UDP, DNS, DNSQR, sniff
 
@@ -30,6 +40,7 @@ from .database import (
 )
 from .detectors import BlacklistChecker, DgaDetector, DnsTunnelDetector
 from .notifiers import ConsoleNotifier, TelegramNotifier
+from .deduplicator import AlertDeduplicator
 
 # ── Constantes ───────────────────────────────────────────────────────────────
 
@@ -39,6 +50,7 @@ DB_PATH = SCRIPT_DIR / "hawkeye.db"
 MALICIOUS_FILE = SCRIPT_DIR / "malicious.txt"
 JSON_EXPORT_PATH = LOGS_DIR / "export.json"
 CSV_EXPORT_PATH = LOGS_DIR / "export.csv"
+RAPPORT_PATH = SCRIPT_DIR / "rapport.html"
 
 
 # ── Callback du sniffer ─────────────────────────────────────────────────────
@@ -52,6 +64,7 @@ class SnifferContext:
         blacklist: BlacklistChecker,
         dga: DgaDetector,
         dnstunnel: DnsTunnelDetector,
+        dedup: AlertDeduplicator,
         console: ConsoleNotifier,
         telegram: TelegramNotifier,
         args,
@@ -60,6 +73,7 @@ class SnifferContext:
         self.blacklist = blacklist
         self.dga = dga
         self.dnstunnel = dnstunnel
+        self.dedup = dedup
         self.console = console
         self.telegram = telegram
         self.args = args
@@ -106,8 +120,13 @@ def traiter_paquet(packet, ctx: SnifferContext) -> None:
         alerte_type = "TUNNEL_DNS"
         alerte = (alerte + " | " + tunnel_msg) if alerte else tunnel_msg
 
-    # ── Affichage console ──
-    ctx.console.paquet(ip_source, domaine, qtype, alerte, alerte_type)
+    # ── 4. Déduplication ──
+    if alerte and ctx.dedup.est_dupliquee(domaine, alerte_type, ip_source):
+        # On stocke mais on n'affiche pas (silencieux)
+        pass
+    else:
+        # ── Affichage console ──
+        ctx.console.paquet(ip_source, domaine, qtype, alerte, alerte_type)
 
     # ── Base de données ──
     if ctx.conn is not None:
@@ -122,7 +141,7 @@ def traiter_paquet(packet, ctx: SnifferContext) -> None:
         pass
 
     # ── Notification Telegram (asynchrone) ──
-    if ctx.telegram.enabled and alerte:
+    if ctx.telegram.enabled and alerte and not ctx.dedup.est_dupliquee(domaine, alerte_type, ip_source):
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -149,24 +168,27 @@ def creer_parser() -> argparse.ArgumentParser:
         description=f"HawkEye v{__version__} — Sniffer DNS & Détecteur d'Anomalies",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
+Sous-commandes :
+  (par défaut)      Sniffer DNS en temps réel
+  dashboard         Interface web (Flask)
+  watch             Tableau de bord terminal
+  report            Générer un rapport HTML
+  pcap <fichier>    Analyser un fichier PCAP offline
+
 Exemples :
   %(prog)s                          # Sniffer toutes les requêtes DNS
-  %(prog)s --no-type-a-only         # Inclure AAAA, MX, etc.
-  %(prog)s --export-json            # Sniffer + export JSON
-  %(prog)s --export-csv             # Sniffer + export CSV
   %(prog)s dashboard                # Lancer le dashboard web
-  %(prog)s --list                   # Voir l'historique
+  %(prog)s watch                    # Dashboard terminal
+  %(prog)s report                   # Rapport HTML
+  %(prog)s pcap capture.pcap        # Analyse PCAP
   %(prog)s --stats                  # Statistiques
-  %(prog)s --recherche --domaine example.com  # Rechercher un domaine
-  %(prog)s --db /tmp/test.db        # Base personnalisée
+  %(prog)s --list                   # Voir l'historique
+  %(prog)s --recherche --domaine X  # Rechercher un domaine
+  %(prog)s --export-json            # Exporter en JSON
         """,
     )
 
-    # Options de sniffing
-    parser.add_argument(
-        "--type-a-only", action=argparse.BooleanOptionalAction, default=True,
-        help="Ne capturer que les requêtes TYPE A (défaut: True)",
-    )
+    # Options globales
     parser.add_argument(
         "--db", type=str, default=str(DB_PATH),
         help=f"Chemin de la base SQLite (défaut: {DB_PATH})",
@@ -174,6 +196,12 @@ Exemples :
     parser.add_argument(
         "--malicious", type=str, default=str(MALICIOUS_FILE),
         help=f"Fichier de liste noire (défaut: {MALICIOUS_FILE})",
+    )
+
+    # Options de sniffing
+    parser.add_argument(
+        "--type-a-only", action=argparse.BooleanOptionalAction, default=True,
+        help="Ne capturer que les requêtes TYPE A (défaut: True)",
     )
 
     # Modes sans sniffing
@@ -211,19 +239,33 @@ Exemples :
         help="Filtrer par type d'alerte",
     )
 
-    # Dashboard
+    # Sous-commandes positionnelles
     parser.add_argument(
         "commande", nargs="?", default="",
-        choices=["", "dashboard"],
-        help="Commande spéciale (dashboard)",
+        choices=["", "dashboard", "watch", "report", "pcap"],
+        help="Sous-commande (dashboard, watch, report, pcap)",
     )
     parser.add_argument(
-        "--host", type=str, default="127.0.0.1",
+        "fichier_pcap", nargs="?", default="",
+        help="Fichier PCAP à analyser (mode pcap)",
+    )
+
+    # Dashboard options
+    parser.add_argument(
+        "--host", type=str,
+        default=os.getenv("HAWKEYE_DASHBOARD_HOST", "127.0.0.1"),
         help="Hôte pour le dashboard (défaut: 127.0.0.1)",
     )
     parser.add_argument(
-        "--port", type=int, default=5000,
+        "--port", type=int,
+        default=int(os.getenv("HAWKEYE_DASHBOARD_PORT", "5000")),
         help="Port pour le dashboard (défaut: 5000)",
+    )
+
+    # Report options
+    parser.add_argument(
+        "--output", type=str, default="",
+        help="Chemin de sortie pour le rapport HTML",
     )
 
     return parser
@@ -308,6 +350,59 @@ def mode_dashboard(db_path: str, host: str, port: int):
     run_dashboard(db_path=db_path, host=host, port=port)
 
 
+# ── Mode watch ───────────────────────────────────────────────────────────────
+
+def mode_watch(db_path: str):
+    """Lance le dashboard terminal."""
+    try:
+        from .watch import TerminalDashboard
+    except ImportError as e:
+        print(f"[!] Impossible de lancer le mode watch : {e}")
+        sys.exit(1)
+    dash = TerminalDashboard(db_path)
+    dash.run()
+
+
+# ── Mode report ──────────────────────────────────────────────────────────────
+
+def mode_report(db_path: str, output: str):
+    """Génère un rapport HTML."""
+    try:
+        from .report import generer_rapport
+    except ImportError as e:
+        print(f"[!] Impossible de générer le rapport : {e}")
+        sys.exit(1)
+    chemin = output or str(RAPPORT_PATH)
+    generer_rapport(db_path, chemin)
+
+
+# ── Mode pcap ────────────────────────────────────────────────────────────────
+
+def mode_pcap(pcap_path: str, db_path: str, malicious_path: str):
+    """Analyse un fichier PCAP offline."""
+    if not pcap_path:
+        print("[!] Usage : python -m hawkeye pcap <fichier.pcap>")
+        sys.exit(1)
+    try:
+        from .pcap_analyzer import analyser_pcap
+    except ImportError as e:
+        print(f"[!] Impossible d'analyser le PCAP : {e}")
+        sys.exit(1)
+    try:
+        resultat = analyser_pcap(pcap_path, db_path, malicious_path)
+        print(f"\n  Résumé : {resultat['requetes_dns']} requêtes DNS "
+              f"sur {resultat['total_paquets']} paquets, "
+              f"{resultat['alertes']} alertes")
+        if resultat["duree_estimee"] != "N/A":
+            print(f"  Durée capture : {resultat['duree_estimee']}")
+    except FileNotFoundError as e:
+        print(f"[!] {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"[!] Erreur analyse PCAP : {e}")
+        sys.exit(1)
+
+
 # ── Mode sniffing ────────────────────────────────────────────────────────────
 
 def mode_sniff(args):
@@ -328,6 +423,7 @@ def mode_sniff(args):
     # Détecteurs
     dga = DgaDetector()
     dnstunnel = DnsTunnelDetector()
+    dedup = AlertDeduplicator()
 
     # Base de données
     conn = init_db(args.db)
@@ -339,9 +435,10 @@ def mode_sniff(args):
         console.info("Notifications Telegram activées")
     else:
         print("[i] Telegram : désactivé (définissez HAWKEYE_TELEGRAM_TOKEN et CHAT_ID)")
+    print("[i] Déduplication : active")
 
     # Contexte
-    ctx = SnifferContext(conn, blacklist, dga, dnstunnel, console, telegram, args)
+    ctx = SnifferContext(conn, blacklist, dga, dnstunnel, dedup, console, telegram, args)
 
     # Gestion signal Ctrl+C
     def handler(sig, frame):
@@ -358,7 +455,6 @@ def mode_sniff(args):
                 loop.close()
             except Exception:
                 pass
-        console.stats_live()
         sys.exit(0)
 
     signal.signal(signal.SIGINT, handler)
@@ -392,9 +488,22 @@ def main():
     parser = creer_parser()
     args = parser.parse_args()
 
-    # ── Mode dashboard ──
+    # ── Sous-commandes ──
     if args.commande == "dashboard":
         mode_dashboard(args.db, args.host, args.port)
+        return
+
+    if args.commande == "watch":
+        mode_watch(args.db)
+        return
+
+    if args.commande == "report":
+        output = args.output or str(RAPPORT_PATH)
+        mode_report(args.db, output)
+        return
+
+    if args.commande == "pcap":
+        mode_pcap(args.fichier_pcap, args.db, args.malicious)
         return
 
     # ── Modes sans sniffing ──
