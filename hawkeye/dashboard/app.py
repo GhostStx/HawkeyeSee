@@ -215,6 +215,21 @@ def create_app(db_path: str = "hawkeye.db") -> "Flask":
             },
         )
 
+    @app.route("/api/health")
+    def api_health():
+        """Endpoint de santé pour Docker healthcheck."""
+        try:
+            conn = sqlite3.connect(app.config["DB_PATH"])
+            conn.execute("SELECT 1")
+            conn.close()
+            return jsonify({
+                "status": "healthy",
+                "db": app.config["DB_PATH"],
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+        except Exception as e:
+            return jsonify({"status": "unhealthy", "error": str(e)}), 500
+
     @app.route("/api/export/csv")
     def api_export_csv():
         """Export CSV de toutes les requêtes."""

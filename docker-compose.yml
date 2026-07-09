@@ -1,35 +1,109 @@
-version: "3.8"
+# ── HawkEye — Docker Compose ────────────────────────────────────────────────
+# Orchestration complète : sniffer + dashboard + healthchecks + profils
+#
+# Usage :
+#   docker compose up -d                      # Sniffer + Dashboard
+#   docker compose up -d sniffer              # Sniffer uniquement
+#   docker compose up -d dashboard            # Dashboard uniquement (sans sniffer)
+#   docker compose up -d --profile full       # Tout (profil par défaut)
+#   docker compose logs -f                    # Logs en temps réel
+#   docker compose down -v                    # Arrêt + suppression volume
 
 services:
-  # ── Sniffer DNS (nécessite des privilèges root) ──
+  # ── Sniffer DNS ──────────────────────────────────────────────────────────
+  # Capture le trafic DNS en temps réel.
+  # Nécessite NET_RAW + NET_ADMIN pour la capture de paquets.
   sniffer:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: hawkeye-sniffer
+    profiles:
+      - full
+      - sniffer
+    # Commande : sniffer + export auto à l'arrêt
     command: ["--db", "/data/hawkeye.db", "--export-json"]
+    # Mode host requis pour capturer le trafic réseau
     network_mode: "host"
     cap_add:
-      - NET_RAW
-      - NET_ADMIN
+      - NET_RAW        # Capture de paquets bruts (Scapy)
+      - NET_ADMIN      # Gestion des interfaces réseau
     volumes:
+      # Volume persistant partagé avec le dashboard
       - hawkeye-data:/data
+      # Liste noire montée en read-only (modifiable sans rebuild)
       - ./malicious.txt:/app/malicious.txt:ro
-    restart: unless-stopped
     environment:
+      # Notifications Telegram (optionnel)
       - HAWKEYE_TELEGRAM_TOKEN=${HAWKEYE_TELEGRAM_TOKEN:-}
       - HAWKEYE_TELEGRAM_CHAT_ID=${HAWKEYE_TELEGRAM_CHAT_ID:-}
+    restart: unless-stopped
+    # Arrêt propre : SIGTERM → export JSON avant de quitter
+    stop_grace_period: 10s
+    # Logging : rotation automatique (évite les logs infinis)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Aucun healthcheck car le sniffer est interactif
+    healthcheck:
+      disable: true
 
-  # ── Dashboard Web ──
+  # ── Dashboard Web ────────────────────────────────────────────────────────
+  # Interface de visualisation temps réel (Flask + SSE + Chart.js).
   dashboard:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: hawkeye-dashboard
+    profiles:
+      - full
+      - dashboard
+    # Commande : lancer le dashboard web
     command: ["dashboard", "--host", "0.0.0.0", "--port", "5000", "--db", "/data/hawkeye.db"]
     ports:
       - "5000:5000"
     volumes:
+      # Même volume que le sniffer → données partagées
       - hawkeye-data:/data
     restart: unless-stopped
+    # Dépend du sniffer pour les données (mais peut démarrer sans)
     depends_on:
-      - sniffer
+      sniffer:
+        condition: service_started
+    # Healthcheck : vérifie que l'API répond
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # ── CLI (mode one-shot) ──────────────────────────────────────────────────
+  # Conteneur éphémère pour lancer des commandes ponctuelles.
+  cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hawkeye-cli
+    profiles:
+      - cli
+    volumes:
+      - hawkeye-data:/data
+    command: ["--help"]
+    # Usage : docker compose --profile cli run --rm cli --stats
+
+# ── Volumes ─────────────────────────────────────────────────────────────────
 volumes:
   hawkeye-data:
+    name: hawkeye-data
+    # Volume persistant : les données survivent aux redémarrages
+    # Pour inspecter : docker run --rm -v hawkeye-data:/data alpine ls -la /data/
+

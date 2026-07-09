@@ -1,0 +1,51 @@
+# ── HawkEye — .dockerignore ─────────────────────────────────────────────────
+# Exclusion de tout ce qui est inutile dans l'image Docker
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Environnement local
+.venv/
+venv/
+env/
+
+# Données (persistées via volumes)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+logs/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Tests & CI (inutiles dans l'image de prod)
+.github/
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+requirements-dev.txt
+
+# Documentation locale
+node_modules/
+
+# Fichiers temporaires
+*.tmp
+*.bak
+*.backup
