@@ -1,7 +1,6 @@
 """Tests du module database."""
 
 import json
-import os
 from hawkeye.database import (
     init_db, inserer_requete, lister_requetes,
     exporter_json, exporter_csv, stats, chercher_requetes,

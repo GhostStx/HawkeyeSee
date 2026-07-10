@@ -16,7 +16,6 @@ import json
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Iterator, Optional
 
 
@@ -168,7 +167,8 @@ def exporter_csv(
     lignes = curseur.fetchall()
     with open(chemin, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["timestamp", "ip_source", "domaine", "type_query", "alerte", "alerte_type"])
+        writer.writerow(["timestamp", "ip_source", "domaine",
+                         "type_query", "alerte", "alerte_type"])
         writer.writerows(lignes)
     print(f"[✓] {len(lignes)} requêtes exportées → {chemin}")
     return len(lignes)

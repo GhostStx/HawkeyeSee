@@ -31,7 +31,7 @@ try:
 except ImportError:
     pass
 
-from scapy.all import IP, UDP, DNS, DNSQR, sniff
+from scapy.all import IP, DNSQR, sniff
 
 from . import __version__
 from .database import (
@@ -141,7 +141,8 @@ def traiter_paquet(packet, ctx: SnifferContext) -> None:
         pass
 
     # ── Notification Telegram (asynchrone) ──
-    if ctx.telegram.enabled and alerte and not ctx.dedup.est_dupliquee(domaine, alerte_type, ip_source):
+    if ctx.telegram.enabled and alerte and not ctx.dedup.est_dupliquee(
+            domaine, alerte_type, ip_source):
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -167,7 +168,7 @@ def creer_parser() -> argparse.ArgumentParser:
         prog="python -m hawkeye",
         description=f"HawkEye v{__version__} — Sniffer DNS & Détecteur d'Anomalies",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=f"""
+        epilog="""
 Sous-commandes :
   (par défaut)      Sniffer DNS en temps réel
   dashboard         Interface web (Flask)
@@ -253,7 +254,7 @@ Exemples :
     # Dashboard options
     parser.add_argument(
         "--host", type=str,
-        default=os.getenv("HAWKEYE_DASHBOARD_HOST", "127.0.0.1"),
+        default="127.0.0.1",
         help="Hôte pour le dashboard (défaut: 127.0.0.1)",
     )
     parser.add_argument(
@@ -277,9 +278,9 @@ def mode_stats(db_path: str):
     """Affiche les statistiques."""
     with get_db(db_path) as conn:
         s = db_stats(conn)
-        print(f"\n{'═' * 50}")
-        print(f"  📊 Statistiques HawkEye")
-        print(f"{'═' * 50}")
+        print("\n" + "═" * 50)
+        print("  📊 Statistiques HawkEye")
+        print("═" * 50)
         print(f"  📦 Requêtes totales  : {s['total']}")
         print(f"  🚨 Alertes           : {s['alertes']}")
         print(f"  🌐 Domaines uniques  : {s['domaines_uniques']}")
@@ -288,11 +289,11 @@ def mode_stats(db_path: str):
             print(f"\n  🕐 Première requête  : {s['premiere_requete']}")
             print(f"  🕐 Dernière requête  : {s['derniere_requete']}")
         if s["stats_alertes"]:
-            print(f"\n  Par type d'alerte :")
+            print("\n  Par type d'alerte :")
             for atype, count in s["stats_alertes"].items():
                 print(f"    • {atype}: {count}")
         if s["top_domaines"]:
-            print(f"\n  Top domaines :")
+            print("\n  Top domaines :")
             for d in s["top_domaines"][:5]:
                 print(f"    • {d['domaine']}: {d['count']}x")
         print()
@@ -315,7 +316,7 @@ def mode_liste(db_path: str):
             print(
                 f"{row['id']:>4}  {row['timestamp']:<24}  {row['ip_source']:<18}  "
                 f"{row['domaine']:<40}  {row['type_query']:<6}  {alerte}"
-        )
+            )
 
 
 def mode_recherche(db_path: str, domaine: str, ip: str, alerte_type: str):

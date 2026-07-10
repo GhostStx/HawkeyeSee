@@ -8,10 +8,7 @@ sans avoir besoin de sniffer en direct. Utile pour :
   - Forensic réseau
 """
 
-import os
-import sys
 from pathlib import Path
-from typing import Optional
 
 from .database import init_db, inserer_requete
 from .detectors import BlacklistChecker, DgaDetector, DnsTunnelDetector
@@ -45,7 +42,7 @@ class PcapAnalyzer:
         # Vérifier que scapy est disponible
         try:
             from scapy.utils import rdpcap
-            from scapy.all import IP, UDP, DNS, DNSQR
+            from scapy.all import IP, DNSQR
         except ImportError:
             raise ImportError("Scapy est requis pour l'analyse PCAP")
 

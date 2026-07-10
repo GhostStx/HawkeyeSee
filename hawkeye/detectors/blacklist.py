@@ -5,7 +5,6 @@ Vérifie si un domaine figure dans une liste noire locale.
 Support : domaines exacts, sous-domaines, patterns wildcard.
 """
 
-from pathlib import Path
 from typing import Optional
 
 

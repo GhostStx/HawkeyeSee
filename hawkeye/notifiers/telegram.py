@@ -5,7 +5,6 @@ Envoie des alertes en temps réel vers un canal Telegram via bot API.
 Utile pour une surveillance à distance.
 """
 
-import asyncio
 import os
 from typing import Optional
 

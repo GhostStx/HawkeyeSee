@@ -11,15 +11,13 @@ Produit un rapport HTML autonome (sans serveur) avec :
 Usage :
     python -m hawkeye report
 """
+# flake8: noqa: E501 (les templates HTML dépassent 100 caractères)
 
 import json
-import os
-import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
-from .database import init_db, stats as db_stats, lister_requetes
+from .database import init_db, stats as db_stats
 
 # Template HTML intégré pour un rapport autonome
 RAPPORT_TEMPLATE = r"""<!DOCTYPE html>
@@ -147,15 +145,7 @@ new Chart(document.getElementById('chartDomaines'), {
 
 
 def generer_rapport(db_path: str = "hawkeye.db", output: str = "rapport.html") -> str:
-    """Génère un rapport HTML à partir de la base de données.
-
-    Args:
-        db_path: Chemin vers la base SQLite
-        output: Chemin de sortie du fichier HTML
-
-    Returns:
-        Le chemin absolu du fichier généré
-    """
+    """Génère un rapport HTML à partir de la base de données."""
     import sqlite3
 
     conn = init_db(db_path)

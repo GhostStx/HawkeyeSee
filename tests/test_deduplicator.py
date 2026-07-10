@@ -1,6 +1,5 @@
 """Tests du module de déduplication d'alertes."""
 
-import time
 from hawkeye.deduplicator import AlertDeduplicator
 
 

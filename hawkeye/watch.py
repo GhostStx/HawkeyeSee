@@ -13,9 +13,8 @@ import os
 import shutil
 import sqlite3
 import sys
-import textwrap
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -83,15 +82,15 @@ class TerminalDashboard:
         cols = shutil.get_terminal_size().columns
 
         os.system("clear" if sys.platform == "darwin" else "clear")
-        print(f"\033[1;96m{'═' * min(cols, 60)}\033[0m")
-        print(f"\033[1;96m  🦅 HawkEye — Tableau de bord temps réel\033[0m")
-        print(f"\033[1;96m{'═' * min(cols, 60)}\033[0m")
+        print("\033[1;96m" + "═" * min(cols, 60) + "\033[0m")
+        print("\033[1;96m  🦅 HawkEye — Tableau de bord temps réel\033[0m")
+        print("\033[1;96m" + "═" * min(cols, 60) + "\033[0m")
         print(f"  \033[90m{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\033[0m")
         print(f"  \033[90mBase : {Path(self.db_path).name}\033[0m")
         print()
 
         # Stats globales
-        print(f"  \033[1mSTATISTIQUES\033[0m")
+        print("  \033[1mSTATISTIQUES\033[0m")
         print(f"  ├─ 📦 Requêtes totales  : \033[92m{stats['total']:>8}\033[0m"
               f"  (\033[93m+{stats['nouveaux']}\033[0m)")
         print(f"  ├─ 🚨 Alertes           : \033[91m{stats['alertes']:>8}\033[0m"
@@ -102,7 +101,7 @@ class TerminalDashboard:
 
         # Top domaines
         if stats["top_recent"]:
-            print(f"  \033[1mTOP DOMAINES\033[0m")
+            print("  \033[1mTOP DOMAINES\033[0m")
             for i, row in enumerate(stats["top_recent"], 1):
                 barre = "█" * min(row[1], cols // 4)
                 print(f"  {i}. \033[96m{row[0]:<35}\033[0m \033[90m{row[1]}x\033[0m {barre}")
@@ -110,7 +109,7 @@ class TerminalDashboard:
 
         # Dernières alertes
         if stats["dernieres_alertes"]:
-            print(f"  \033[1mDERNIÈRES ALERTES\033[0m")
+            print("  \033[1mDERNIÈRES ALERTES\033[0m")
             icones = {"BLACKLIST": "🚨", "DGA": "⚠️", "DGA_RAFALE": "📡", "TUNNEL_DNS": "🔓"}
             for row in stats["dernieres_alertes"]:
                 icone = icones.get(row[3] or "", "🔔")

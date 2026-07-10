@@ -1,6 +1,5 @@
 """Tests du générateur de rapport HTML."""
 
-import json
 from hawkeye.database import init_db, inserer_requete
 from hawkeye.report import generer_rapport
 

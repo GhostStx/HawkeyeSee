@@ -9,7 +9,6 @@ HawkEye — Déduplication d'Alertes
 
 import time
 from collections import defaultdict
-from typing import Optional
 
 
 class AlertDeduplicator:

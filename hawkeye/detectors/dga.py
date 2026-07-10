@@ -12,7 +12,6 @@ Détecte les domaines potentiellement générés algorithmiquement en combinant 
 """
 
 import math
-import re
 import time
 from collections import Counter, defaultdict
 from typing import Optional
@@ -121,7 +120,6 @@ class EntropyDgaDetector(_BaseDgaDetector):
         # Extraire le nom (sans le TLD)
         parties = domaine.lower().split(".")
         nom = parties[0] if len(parties) > 0 else domaine
-        tld = parties[-1] if len(parties) > 1 else ""
 
         if not nom or len(nom) < 4:
             return {"score": 0.0, "dga": False, "raison": "Domaine trop court"}

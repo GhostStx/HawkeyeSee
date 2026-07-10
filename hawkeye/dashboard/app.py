@@ -13,9 +13,7 @@ import os
 import queue
 import sqlite3
 import threading
-import time
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Optional
 
 try:
@@ -256,7 +254,8 @@ def create_app(db_path: str = "hawkeye.db") -> "Flask":
 
             output = io.StringIO()
             writer = csv.writer(output)
-            writer.writerow(["timestamp", "ip_source", "domaine", "type_query", "alerte", "alerte_type"])
+            writer.writerow(["timestamp", "ip_source", "domaine",
+                             "type_query", "alerte", "alerte_type"])
             for row in rows:
                 writer.writerow([row[0], row[1], row[2], row[3], row[4], row[5]])
 
@@ -264,7 +263,9 @@ def create_app(db_path: str = "hawkeye.db") -> "Flask":
                 output.getvalue(),
                 mimetype="text/csv",
                 headers={
-                    "Content-Disposition": f"attachment; filename=hawkeye-export-{datetime.now().strftime('%Y%m%d-%H%M%S')}.csv"
+                    "Content-Disposition":
+                    "attachment; filename=hawkeye-export-"
+                    + f"{datetime.now().strftime('%Y%m%d-%H%M%S')}.csv"
                 },
             )
         except Exception as e:
@@ -301,7 +302,8 @@ def create_app(db_path: str = "hawkeye.db") -> "Flask":
 
 # ── Point d'entrée CLI ──
 
-def run_dashboard(db_path: str = "hawkeye.db", host: str = "127.0.0.1", port: int = 5000, debug: bool = False):
+def run_dashboard(db_path: str = "hawkeye.db", host: str = "127.0.0.1",
+                  port: int = 5000, debug: bool = False):
     """Lance le dashboard web."""
     if Flask is None:
         print("[!] Flask n'est pas installé. Faites : pip install flask")
@@ -309,7 +311,7 @@ def run_dashboard(db_path: str = "hawkeye.db", host: str = "127.0.0.1", port: in
 
     app = create_app(db_path)
     print(f"[✓] Dashboard HawkEye : http://{host}:{port}")
-    print(f"    Ctrl+C pour arrêter")
+    print("    Ctrl+C pour arrêter")
     app.run(host=host, port=port, debug=debug, threaded=True)
 
 
