@@ -199,22 +199,17 @@ docker run --rm hawkeye --stats
 
 ### Docker Compose (recommandé)
 
-```yaml
-# Profils disponibles :
-#   full      → sniffer + dashboard (défaut)
-#   sniffer   → sniffer uniquement
-#   dashboard → dashboard uniquement
-#   cli       → commandes one-shot
-```
-
 ```bash
-# Tout lancer
+# Tout lancer (sniffer + dashboard)
 docker compose up -d
 
-# Dashboard uniquement (si sniffer sur une autre machine)
-docker compose --profile dashboard up -d
+# Dashboard uniquement
+docker compose up -d dashboard
 
-# Commande one-shot
+# Sniffer uniquement
+docker compose up -d sniffer
+
+# Commande one-shot (stats, rapport, etc.)
 docker compose --profile cli run --rm cli --stats
 
 # Voir les logs
